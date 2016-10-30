@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+
+require 'socket'
+require 'webrick'
+
+$stdout.sync = true
+
+splunk_socket = nil
+5.times do
+  begin
+    puts 'Connecting to Splunk'
+    splunk_socket = TCPSocket.new('127.0.0.1', 48000)
+    break
+  rescue Errno::ECONNREFUSED => e
+    puts "Failed to connect to Splunk: #{e.inspect}"
+    puts 'Sleeping and retrying.'
+    sleep 1
+  end
+end
+
+if splunk_socket.nil?
+  raise 'Could not connect to Splunk'
+  exit 1
+end
+
+puts 'Creating server'
+server = WEBrick::HTTPServer.new(
+  Port: ENV.fetch('PORT'),
+  # Don't need WEBrick to log anything, the heroku router will.
+  Logger: WEBrick::Log.new('/dev/null'),
+  AccessLog: [],
+)
+
+shutdown = proc do
+  puts 'Disconnecting from Splunk'
+  splunk_socket.close
+  puts 'Shutting down web server'
+  server.shutdown
+  puts 'Stopping Splunk'
+  system('$HOME/splunk/bin/splunk stop')
+end
+
+trap 'INT', shutdown
+trap 'TERM', shutdown
+
+server.mount_proc '/' do |request, response|
+  splunk_socket.puts(request.body)
+  splunk_socket.flush
+end
+
+puts 'Running server'
+server.start

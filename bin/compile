@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# bin/compile <build-path> <cache-path> <env-path>
+
+set -e
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+build_path=$1
+cache_path=$2
+env_path=$3
+
+# these directories must be created if we intend to use them
+mkdir -p $build_path
+mkdir -p $cache_path
+
+version='6.5.0'
+filename='splunk-6.5.0-59c8927def0f-Linux-x86_64.tgz'
+url="https://download.splunk.com/products/splunk/releases/$version/linux/$filename"
+splunk_cache_path="$cache_path/$version"
+
+echo 'current build_path:'
+ls $build_path | indent
+
+echo 'current cache_path dir:'
+ls $cache_path | indent
+
+echo 'current env_path dir:'
+ls $env_path | indent
+
+echo '-----> Detecting cached copy'
+if [ -d "$splunk_cache_path" ]
+then
+  echo "$splunk_cache_path found." | indent
+else
+	echo "$splunk_cache_path not found." | indent
+
+  # clear any previous versions
+  rm -r $cache_path
+  mkdir $cache_path
+  mkdir $splunk_cache_path
+
+  echo '-----> Downloading Splunk...'
+  echo "URL: $url" | indent
+  curl -O $url
+
+  echo '-----> Expanding Splunk'
+  tar -xzf $filename -C $splunk_cache_path
+fi
+
+echo '-----> Copying Splunk into the build'
+cp -r $splunk_cache_path/splunk $build_path/
+
+echo '-----> Copying heroku-splunk-start into the build'
+cp 'heroku-splunk-start' $build_path/
+
+echo '-----> Copying server into the build'
+cp 'server' $build_path/
+
+echo '-----> Done'
