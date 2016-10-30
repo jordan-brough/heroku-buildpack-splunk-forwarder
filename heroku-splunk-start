@@ -10,11 +10,7 @@ fi
 
 app_local_path="$HOME/local"
 
-# Require the app to have a config dir (this app is pretty useless without it)
-if [ ! -d "$app_local_path" ]; then
-  echo "Local settings path $app_local_path does not exist. Please create it."
-  exit 1
-fi
+mkdir -p app_local_path
 
 splunk_cloud_app_path='splunkclouduf.spl'
 
