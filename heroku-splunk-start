@@ -51,14 +51,27 @@ Dir.glob("#{old_system_local_path}/*.conf") do |old_conf_path|
   end
 end
 
+puts 'Creating default inputs.conf for port 48000'
+File.open("#{system_local_path}/inputs.conf", 'a') do |file|
+  file.puts
+  file.puts <<-EOF.gsub(/^ +/, '')
+    [tcp://48000]
+    connection_host = ip
+    index = staging
+    source = website
+    sourcetype = node
+  EOF
+end
+
 # Loop through each drain id in the environment and add stanzas for them.
 # This assumes that all environment variables like "d.XXX" are drain ids.
-puts 'Generating inputs.conf entries for drain ids in environment'
-ENV.select { |k, v| k =~ /^d\./ }.each do |drain_id, drain_data|
+puts 'Generating inputs.conf entries for environment drain ids'
+ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
+  port = 48000 + i
   File.open("#{system_local_path}/inputs.conf", 'a') do |file|
     file.puts # add an extra line just to be safe
     file.puts <<-EOF.gsub(/^ +/, '')
-      [tcp://48000]
+      [tcp://#{port}]
       connection_host = ip
       index = staging
       source = website
