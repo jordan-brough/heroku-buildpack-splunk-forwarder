@@ -69,7 +69,7 @@ end
 # This assumes that all environment variables like "d.XXX" are drain ids.
 puts 'Generating inputs.conf entries for environment drain ids'
 ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
-  port = 48000 + i
+  port = 48001 + i
   File.open(inputs_conf_path, 'a') do |file|
     file.puts
     file.puts <<-EOF.gsub(/^ +/, '')
@@ -84,6 +84,7 @@ end
 
 puts 'inputs.conf contents:'
 puts File.read(inputs_conf_path)
+puts
 
 puts 'Disabling webserver functionality'
 sys('splunk/bin/splunk disable webserver')
