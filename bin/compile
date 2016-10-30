@@ -20,13 +20,16 @@ filename='splunk-6.5.0-59c8927def0f-Linux-x86_64.tgz'
 url="https://download.splunk.com/products/splunk/releases/$version/linux/$filename"
 splunk_cache_path="$cache_path/$version"
 
-echo 'current build_path:'
+echo 'current dir:' | indent
+ls | indent
+
+echo 'current build_path:' | indent
 ls $build_path | indent
 
-echo 'current cache_path dir:'
+echo 'current cache_path dir:' | indent
 ls $cache_path | indent
 
-echo 'current env_path dir:'
+echo 'current env_path dir:' | indent
 ls $env_path | indent
 
 echo '-----> Detecting cached copy'

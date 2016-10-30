@@ -1,74 +1,83 @@
-#!/usr/bin/env bash
+#!/usr/bin/env ruby
 
-set -e
+require 'fileutils'
+
+def sys(command)
+  puts "Executing command: #{command}"
+  system(command) || raise('Command failed')
+end
 
 # Require a password so avoid "admin/changeme" as the default
-if [ -z "$SPLUNK_ADMIN_PASSWORD" ]; then
-  echo 'SPLUNK_ADMIN_PASSWORD environment variable is not set. Please set it.'
-  exit 1
-fi
+if !ENV.key?('SPLUNK_ADMIN_PASSWORD')
+  raise 'SPLUNK_ADMIN_PASSWORD environment variable is not set. Please set it.'
+end
 
-app_local_path="$HOME/local"
+app_local_path="#{ENV['HOME']}/local"
 
-mkdir -p app_local_path
+Dir.mkdir(app_local_path) if !Dir.exist?(app_local_path)
 
 splunk_cloud_app_path='splunkclouduf.spl'
 
-if [ ! -f "$splunk_cloud_app_path" ]; then
-  echo "Splunk Cloud app missing. Please add it at $splunk_cloud_app_path"
-  exit 1
-fi
+if !File.exist?(splunk_cloud_app_path)
+  raise "Splunk Cloud app missing. Please add it at #{splunk_cloud_app_path}"
+end
 
 # Change the password from the default one
 # Also, this takes care of running Splunk's "first time run" (frt) code and
 # accepting the license.
-splunk/bin/splunk edit user admin -password "$SPLUNK_ADMIN_PASSWORD" -role admin -auth admin:changeme --accept-license
+puts 'Changing admin password'
+sys('splunk/bin/splunk edit user admin -password "$SPLUNK_ADMIN_PASSWORD" -role admin -auth admin:changeme --accept-license')
 
 # - Move the Splunk-generated etc/system/local files aside
 # - Move the app's local files into place
 # - Append the Splunk-generated files into the app's files
 
-system_local_path=splunk/etc/system/local
-old_system_local_path=splunk/etc/system/local-old
+puts('Merging splunk-generated config files with app config files')
 
-mv $system_local_path $old_system_local_path
+system_local_path='splunk/etc/system/local'
+old_system_local_path='splunk/etc/system/local-old'
 
-ln -s $app_local_path $system_local_path
+FileUtils.mv(system_local_path, old_system_local_path)
 
-for conf_path in $old_system_local_path/*
-do
-  # add a newline to the target file just in case it doesn't have one at the end
-  echo >> $system_local_path/${conf_path##*/}
-  cat $conf_path >> $system_local_path/${conf_path##*/}
-done
+FileUtils.ln_s(app_local_path, system_local_path)
 
-cat << EOF >> $system_local_path/inputs.conf
+Dir.glob("#{old_system_local_path}/*.conf") do |old_conf_path|
+  filename = File.basename(old_conf_path)
+  new_conf_path = "#{system_local_path}/#{filename}"
 
-[tcp://48000]
-connection_host = ip
-index = staging
-source = website
-sourcetype = node
-EOF
+  File.open(new_conf_path, 'a') do |file|
+    file.puts
+    file.puts File.read(old_conf_path)
+  end
+end
 
 # Loop through each drain id in the environment and add stanzas for them.
-# This assumes that only all environment variables like "d.XXX" are drain ids.
-# for drain_id in `echo ${!d.*}`
-# do
-#   drain_source=`printenv $drain_id`
-# done
+# This assumes that all environment variables like "d.XXX" are drain ids.
+puts 'Generating inputs.conf entries for drain ids in environment'
+ENV.select { |k, v| k =~ /^d\./ }.each do |drain_id, drain_data|
+  File.open("#{system_local_path}/inputs.conf", 'a') do |file|
+    file.puts # add an extra line just to be safe
+    file.puts <<-EOF.gsub(/^ +/, '')
+      [tcp://48000]
+      connection_host = ip
+      index = staging
+      source = website
+      sourcetype = node
+    EOF
+  end
+end
 
-echo 'Disabling webserver functionality'
-splunk/bin/splunk disable webserver
+puts 'Disabling webserver functionality'
+sys('splunk/bin/splunk disable webserver')
 
-echo 'Starting splunkd'
-splunk/bin/splunk start splunkd
+puts 'Starting splunkd'
+sys('splunk/bin/splunk start splunkd')
 
-echo 'Installing Splunk Cloud app'
-splunk/bin/splunk install app $splunk_cloud_app_path -auth admin:"$SPLUNK_ADMIN_PASSWORD"
+puts 'Installing Splunk Cloud app'
+sys("splunk/bin/splunk install app #{splunk_cloud_app_path} -auth admin:\"$SPLUNK_ADMIN_PASSWORD\"")
 
-echo 'Restarting Splunk'
-splunk/bin/splunk restart splunkd
+puts 'Restarting Splunk'
+sys('splunk/bin/splunk restart splunkd')
 
-echo 'Starting web server'
-./server
+puts 'Starting web server'
+sys('./server')
