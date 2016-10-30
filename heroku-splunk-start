@@ -51,8 +51,10 @@ Dir.glob("#{old_system_local_path}/*.conf") do |old_conf_path|
   end
 end
 
+inputs_conf_path = "#{system_local_path}/inputs.conf"
+
 puts 'Creating default inputs.conf for port 48000'
-File.open("#{system_local_path}/inputs.conf", 'a') do |file|
+File.open(inputs_conf_path, 'a') do |file|
   file.puts
   file.puts <<-EOF.gsub(/^ +/, '')
     [tcp://48000]
@@ -68,8 +70,8 @@ end
 puts 'Generating inputs.conf entries for environment drain ids'
 ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
   port = 48000 + i
-  File.open("#{system_local_path}/inputs.conf", 'a') do |file|
-    file.puts # add an extra line just to be safe
+  File.open(inputs_conf_path, 'a') do |file|
+    file.puts
     file.puts <<-EOF.gsub(/^ +/, '')
       [tcp://#{port}]
       connection_host = ip
@@ -79,6 +81,9 @@ ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
     EOF
   end
 end
+
+puts 'inputs.conf contents:'
+puts File.read(inputs_conf_path)
 
 puts 'Disabling webserver functionality'
 sys('splunk/bin/splunk disable webserver')
