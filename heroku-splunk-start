@@ -87,7 +87,7 @@ ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
     file.puts <<-EOS.gsub(/^ +/, '')
       [tcp://#{port}]
       connection_host = ip
-      source = #{source}"
+      source = #{source}
       sourcetype = #{sourcetype}
     EOS
     file.puts "index = #{index}" if index
