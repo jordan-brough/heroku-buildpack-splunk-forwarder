@@ -56,29 +56,37 @@ inputs_conf_path = "#{system_local_path}/inputs.conf"
 puts 'Creating default inputs.conf for port 48000'
 File.open(inputs_conf_path, 'a') do |file|
   file.puts
-  file.puts <<-EOF.gsub(/^ +/, '')
+  file.puts <<-EOS.gsub(/^ +/, '')
     [tcp://48000]
     connection_host = ip
-    index = staging
-    source = website
-    sourcetype = node
-  EOF
+    source = heroku
+    sourcetype = heroku-syslog
+  EOS
 end
 
 # Loop through each drain id in the environment and add stanzas for them.
-# This assumes that all environment variables like "d.XXX" are drain ids.
+# Every environment variable with a key like "d.XXX" is considered a drain id
+# and should be formatted like this:
+#   index=main source=website sourcetype=rails
+# (all values are optional)
 puts 'Generating inputs.conf entries for environment drain ids'
 ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
+  configs = Hash[drain_data.split.map { |keyval| keyval.split('=') }]
+
   port = 48001 + i
+  index = configs['index']
+  source = configs['source'] || 'heroku'
+  sourcetype = configs['sourcetype'] || 'heroku-syslog'
+
   File.open(inputs_conf_path, 'a') do |file|
     file.puts
-    file.puts <<-EOF.gsub(/^ +/, '')
+    file.puts <<-EOS.gsub(/^ +/, '')
       [tcp://#{port}]
       connection_host = ip
-      index = staging
-      source = website
-      sourcetype = node
-    EOF
+      source = #{source}"
+      sourcetype = #{sourcetype}
+    EOS
+    file.puts "index = #{index}" if index
   end
 end
 
