@@ -4,25 +4,44 @@ require 'socket'
 require 'webrick'
 
 class Server
-  def initialize(drain_configs:)
+  def initialize(default_splunk_port:, drain_configs:)
+    @default_splunk_port = default_splunk_port
     @drain_configs = drain_configs
   end
 
   def run
-    splunk_socket = connect_to_splunk
-    server = create_server(splunk_socket: splunk_socket)
-
-    puts 'Running server'
-    server.start
+    create_splunk_sockets
+    create_server
+    run_server
   end
 
-  def connect_to_splunk
+  private
+
+  def run_server
+    puts 'Running server'
+
+    @server.start
+  end
+
+  def create_splunk_sockets
+    @splunk_sockets = {}
+
+    @splunk_sockets[:default] = create_splunk_socket(@default_splunk_port)
+
+    @drain_configs.each do |drain_id, config|
+      @splunk_sockets[drain_id] = create_splunk_socket(config['port'])
+    end
+
+    @splunk_sockets
+  end
+
+  def create_splunk_socket(port)
     puts 'Connecting to Splunk'
 
     5.times do
       begin
-        puts 'Attempting to connect to Splunk'
-        return TCPSocket.new('127.0.0.1', 48000)
+        puts "Attempting to connect to Splunk on port #{port}"
+        return TCPSocket.new('127.0.0.1', port)
       rescue Errno::ECONNREFUSED => e
         puts "Failed to connect to Splunk: #{e.inspect}"
         puts 'Sleeping and retrying.'
@@ -33,10 +52,10 @@ class Server
     raise 'Could not connect to Splunk'
   end
 
-  def create_server(splunk_socket:)
+  def create_server
     puts 'Creating server'
 
-    server = WEBrick::HTTPServer.new(
+    @server = WEBrick::HTTPServer.new(
       Port: ENV.fetch('PORT'),
       # Don't need WEBrick to log anything, the heroku router will.
       Logger: WEBrick::Log.new('/dev/null'),
@@ -45,9 +64,9 @@ class Server
 
     shutdown = proc do
       puts 'Disconnecting from Splunk'
-      splunk_socket.close
+      @splunk_sockets.each { |_, socket| socket.close }
       puts 'Shutting down web server'
-      server.shutdown
+      @server.shutdown
       puts 'Stopping Splunk'
       system('$HOME/splunk/bin/splunk stop')
     end
@@ -55,11 +74,12 @@ class Server
     trap 'INT', shutdown
     trap 'TERM', shutdown
 
-    server.mount_proc '/' do |request, response|
-      splunk_socket.puts(request.body)
-      splunk_socket.flush
-    end
+    @server.mount_proc '/' do |request, response|
+      drain_id = request['Logplex-Drain-Token']
+      socket = @splunk_sockets[drain_id] || @splunk_sockets[:default]
 
-    server
+      socket.puts(request.body)
+      socket.flush
+    end
   end
 end

@@ -63,6 +63,7 @@ puts 'Creating default inputs.conf'
 File.open(inputs_conf_path, 'a') do |file|
   file.puts
   file.puts <<-EOS.gsub(/^ +/, '')
+    [default]
     host = heroku
 
     [tcp://48000]
@@ -78,25 +79,41 @@ end
 #   index=main source=website sourcetype=rails
 # (all values are optional)
 puts 'Generating inputs.conf entries for environment drain ids'
-drain_configs = ENV.select { |k, v| k =~ /^d\./ }
 
-drain_configs.each.with_index do |(drain_id, drain_data), i|
-  configs = drain_data.split.map { |keyval| keyval.split('=') }.to_h
+drain_defaults = {
+  'connection_host' => 'none',
+  'source' => 'heroku',
+  'sourcetype' => 'heroku-syslog',
+}
 
-  port = 48001 + i
-  index = configs['index']
-  source = configs['source'] || 'heroku'
-  sourcetype = configs['sourcetype'] || 'heroku-syslog'
+drains = ENV.select { |k, v| k =~ /^d\./ }
+puts "Found these drains: #{drains.inspect}"
 
+drain_configs = {}
+
+# Populates drain_configs with an entry for each drain id in the environment.
+# Example:
+#   {
+#     'd.123456' => {
+#       'source' => heroku,
+#       'port' => 48001,
+#       ...
+#      },
+#     ...
+#   }
+drains.each.with_index do |(drain_id, drain_data), i|
+  parsed = drain_data.split.map { |keyval| keyval.split('=') }.to_h
+
+  drain_configs[drain_id] = drain_defaults.merge(parsed).merge('port' => 48001+i)
+end
+
+drain_configs.each.with_index do |(drain_id, config), i|
   File.open(inputs_conf_path, 'a') do |file|
     file.puts
-    file.puts <<-EOS.gsub(/^ +/, '')
-      [tcp://#{port}]
-      connection_host = none
-      source = #{source}
-      sourcetype = #{sourcetype}
-    EOS
-    file.puts "index = #{index}" if index
+    file.puts "[tcp://#{config['port']}]"
+    config.each do |key, val|
+      file.puts "#{key} = #{val}"
+    end
   end
 end
 
@@ -119,4 +136,7 @@ sys('splunk/bin/splunk restart splunkd')
 puts 'Starting web server'
 load 'server'
 
-Server.new(drain_configs: drain_configs).run
+Server.new(
+  default_splunk_port: 48000,
+  drain_configs: drain_configs,
+).run
