@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 
-puts "RUBY_VERSION: #{RUBY_VERSION}"
+if RUBY_VERSION < '2.3'
+  raise "The heroku-buildpack-splunk-forwarder expects Ruby >= 2.3. Please add the ruby version to your Gemfile."
+end
 
 require 'fileutils'
 
