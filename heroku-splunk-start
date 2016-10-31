@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+$stdout.sync = true
+
 if RUBY_VERSION < '2.3'
   raise "The heroku-buildpack-splunk-forwarder expects Ruby >= 2.3. Please add the ruby version to your Gemfile."
 end
@@ -74,7 +76,9 @@ end
 #   index=main source=website sourcetype=rails
 # (all values are optional)
 puts 'Generating inputs.conf entries for environment drain ids'
-ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
+drain_configs = ENV.select { |k, v| k =~ /^d\./ }
+
+drain_configs.each.with_index do |(drain_id, drain_data), i|
   configs = drain_data.split.map { |keyval| keyval.split('=') }.to_h
 
   port = 48001 + i
@@ -111,4 +115,6 @@ puts 'Restarting Splunk'
 sys('splunk/bin/splunk restart splunkd')
 
 puts 'Starting web server'
-sys('./server')
+load 'server'
+
+Server.new(drain_configs: drain_configs).run
