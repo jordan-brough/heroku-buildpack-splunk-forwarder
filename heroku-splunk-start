@@ -61,7 +61,7 @@ inputs_conf_path = "#{system_local_path}/inputs.conf"
 
 default_index      = ENV['SPLUNK_DEFAULT_INDEX']
 default_host       = ENV['SPLUNK_DEFAULT_HOST']       || 'heroku'
-default_source     = ENV['SPLUNK_DEFAULT_SOURCE']     || 'heroku'
+default_source     = ENV['SPLUNK_DEFAULT_SOURCE']     || 'heroku-unknown'
 default_sourcetype = ENV['SPLUNK_DEFAULT_SOURCETYPE'] || 'heroku-syslog'
 
 puts 'Creating default inputs.conf'
