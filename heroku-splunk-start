@@ -73,7 +73,7 @@ end
 # (all values are optional)
 puts 'Generating inputs.conf entries for environment drain ids'
 ENV.select { |k, v| k =~ /^d\./ }.each.with_index do |(drain_id, drain_data), i|
-  configs = Hash[drain_data.split.map { |keyval| keyval.split('=') }]
+  configs = drain_data.split.map { |keyval| keyval.split('=') }.to_h
 
   port = 48001 + i
   index = configs['index']
