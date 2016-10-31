@@ -4,9 +4,9 @@ require 'socket'
 require 'webrick'
 
 class Server
-  def initialize(default_splunk_port:, drain_configs:)
+  def initialize(default_splunk_port:, drain_ports:)
     @default_splunk_port = default_splunk_port
-    @drain_configs = drain_configs
+    @drain_ports = drain_ports
   end
 
   def run
@@ -28,8 +28,8 @@ class Server
 
     @splunk_sockets[:default] = create_splunk_socket(@default_splunk_port)
 
-    @drain_configs.each do |drain_id, config|
-      @splunk_sockets[drain_id] = create_splunk_socket(config['port'])
+    @drain_ports.each do |drain_id, port|
+      @splunk_sockets[drain_id] = create_splunk_socket(port)
     end
 
     @splunk_sockets

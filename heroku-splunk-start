@@ -59,18 +59,22 @@ end
 
 inputs_conf_path = "#{system_local_path}/inputs.conf"
 
+default_index      = ENV['SPLUNK_DEFAULT_INDEX']
+default_host       = ENV['SPLUNK_DEFAULT_HOST']       || 'heroku'
+default_source     = ENV['SPLUNK_DEFAULT_SOURCE']     || 'heroku'
+default_sourcetype = ENV['SPLUNK_DEFAULT_SOURCETYPE'] || 'heroku-syslog'
+
 puts 'Creating default inputs.conf'
 File.open(inputs_conf_path, 'a') do |file|
   file.puts
-  file.puts <<-EOS.gsub(/^ +/, '')
-    [default]
-    host = heroku
-
-    [tcp://48000]
-    connection_host = none
-    source = heroku
-    sourcetype = heroku-syslog
-  EOS
+  file.puts "[default]"
+  file.puts "index = #{default_index}" if default_index
+  file.puts "host = #{default_host}"
+  file.puts "connection_host = none"
+  file.puts "source = #{default_source}"
+  file.puts "sourcetype = #{default_sourcetype}"
+  file.puts
+  file.puts "[tcp://48000]"
 end
 
 # Loop through each drain id in the environment and add stanzas for them.
@@ -80,16 +84,11 @@ end
 # (all values are optional)
 puts 'Generating inputs.conf entries for environment drain ids'
 
-drain_defaults = {
-  'connection_host' => 'none',
-  'source' => 'heroku',
-  'sourcetype' => 'heroku-syslog',
-}
-
 drains = ENV.select { |k, v| k =~ /^d\./ }
 puts "Found these drains: #{drains.inspect}"
 
 drain_configs = {}
+drain_ports = {}
 
 # Populates drain_configs with an entry for each drain id in the environment.
 # Example:
@@ -104,15 +103,17 @@ drain_configs = {}
 drains.each.with_index do |(drain_id, drain_data), i|
   parsed = drain_data.split.map { |keyval| keyval.split('=') }.to_h
 
-  drain_configs[drain_id] = drain_defaults.merge(parsed).merge('port' => 48001+i)
+  drain_configs[drain_id] = parsed
+  drain_ports[drain_id] = 48001+i
 end
 
 drain_configs.each.with_index do |(drain_id, config), i|
+  port = drain_ports.fetch(drain_id)
+
   File.open(inputs_conf_path, 'a') do |file|
     file.puts
-    file.puts "[tcp://#{config['port']}]"
+    file.puts "[tcp://#{port}]"
     config.each do |key, val|
-      next if key == 'port'
       file.puts "#{key} = #{val}"
     end
   end
@@ -139,5 +140,5 @@ load 'server'
 
 Server.new(
   default_splunk_port: 48000,
-  drain_configs: drain_configs,
+  drain_ports: drain_ports,
 ).run
