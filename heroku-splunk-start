@@ -59,12 +59,14 @@ end
 
 inputs_conf_path = "#{system_local_path}/inputs.conf"
 
-puts 'Creating default inputs.conf for port 48000'
+puts 'Creating default inputs.conf'
 File.open(inputs_conf_path, 'a') do |file|
   file.puts
   file.puts <<-EOS.gsub(/^ +/, '')
+    host = heroku
+
     [tcp://48000]
-    connection_host = ip
+    connection_host = none
     source = heroku
     sourcetype = heroku-syslog
   EOS
@@ -90,7 +92,7 @@ drain_configs.each.with_index do |(drain_id, drain_data), i|
     file.puts
     file.puts <<-EOS.gsub(/^ +/, '')
       [tcp://#{port}]
-      connection_host = ip
+      connection_host = none
       source = #{source}
       sourcetype = #{sourcetype}
     EOS
