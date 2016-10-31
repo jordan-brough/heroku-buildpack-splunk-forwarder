@@ -112,6 +112,7 @@ drain_configs.each.with_index do |(drain_id, config), i|
     file.puts
     file.puts "[tcp://#{config['port']}]"
     config.each do |key, val|
+      next if key == 'port'
       file.puts "#{key} = #{val}"
     end
   end
