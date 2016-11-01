@@ -19,6 +19,21 @@ version='6.5.0'
 filename='splunk-6.5.0-59c8927def0f-Linux-x86_64.tgz'
 url="https://download.splunk.com/products/splunk/releases/$version/linux/$filename"
 splunk_cache_path="$cache_path/$version"
+splunk_cloud_app_path="$build_path/splunkclouduf.spl"
+
+if [ ! -f $env_path/SPLUNK_ADMIN_PASSWORD ]
+then
+  echo '-----> SPLUNK_ADMIN_PASSWORD is not set. Please add it to your config vars.'
+  exit 1
+fi
+
+splunk_admin_password=$(cat $env_path/SPLUNK_ADMIN_PASSWORD)
+
+if [ ! -f $splunk_cloud_app_path ]
+then
+  echo "-----> splunkclouduf.spl not found. Please add it to your app."
+  exit 1
+fi
 
 echo '-----> Detecting cached copy'
 if [ -d "$splunk_cache_path" ]
@@ -48,5 +63,20 @@ cp 'heroku-splunk-start' $build_path/
 
 echo '-----> Copying server into the build'
 cp 'server' $build_path/
+
+echo '-----> Running first time setup and changing admin password'
+$build_path/splunk/bin/splunk edit user admin -password "$splunk_admin_password" -role admin -auth admin:changeme --accept-license
+
+echo '-----> Disabling webserver functionality'
+$build_path/splunk/bin/splunk disable webserver
+
+echo '-----> Starting splunkd to install Splunk Cloud app'
+$build_path/splunk/bin/splunk start splunkd
+
+echo '-----> Installing Splunk Cloud app'
+$build_path/splunk/bin/splunk install app $splunk_cloud_app_path -auth admin:"$splunk_admin_password"
+
+echo '-----> Stopping splunkd'
+$build_path/splunk/bin/splunk stop splunkd
 
 echo '-----> Done'

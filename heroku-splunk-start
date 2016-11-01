@@ -22,18 +22,6 @@ app_local_path="#{ENV['HOME']}/local"
 
 Dir.mkdir(app_local_path) if !Dir.exist?(app_local_path)
 
-splunk_cloud_app_path='splunkclouduf.spl'
-
-if !File.exist?(splunk_cloud_app_path)
-  raise "Splunk Cloud app missing. Please add it at #{splunk_cloud_app_path}"
-end
-
-# Change the password from the default one
-# Also, this takes care of running Splunk's "first time run" (frt) code and
-# accepting the license.
-puts 'Changing admin password'
-sys('splunk/bin/splunk edit user admin -password "$SPLUNK_ADMIN_PASSWORD" -role admin -auth admin:changeme --accept-license')
-
 # - Move the Splunk-generated etc/system/local files aside
 # - Move the app's local files into place
 # - Append the Splunk-generated files into the app's files
@@ -123,17 +111,8 @@ puts 'inputs.conf contents:'
 puts File.read(inputs_conf_path)
 puts
 
-puts 'Disabling webserver functionality'
-sys('splunk/bin/splunk disable webserver')
-
-puts 'Starting splunkd'
+puts 'Starting Splunk'
 sys('splunk/bin/splunk start splunkd')
-
-puts 'Installing Splunk Cloud app'
-sys("splunk/bin/splunk install app #{splunk_cloud_app_path} -auth admin:\"$SPLUNK_ADMIN_PASSWORD\"")
-
-puts 'Restarting Splunk'
-sys('splunk/bin/splunk restart splunkd')
 
 puts 'Starting web server'
 load 'server'
