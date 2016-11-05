@@ -95,7 +95,7 @@ drains.each.with_index do |(drain_id, drain_data), i|
   parsed = drain_data.split.map { |keyval| keyval.split('=') }.to_h
 
   drain_configs[drain_id] = parsed
-  drain_ports[drain_id] = 48001+i
+  drain_ports[drain_id] = 48000+(i+1)
 end
 
 drain_configs.each.with_index do |(drain_id, config), i|
