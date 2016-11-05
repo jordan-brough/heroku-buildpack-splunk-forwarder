@@ -78,15 +78,18 @@ puts "Found these drains: #{drains.inspect}"
 drain_configs = {}
 drain_ports = {}
 
-# Populates drain_configs with an entry for each drain id in the environment.
+# Populates drain_configs and drain_ports from environment settings.
 # Example:
-#   {
+#   drain_configs = {
 #     'd.123456' => {
 #       'source' => heroku,
-#       'port' => 48001,
 #       ...
 #      },
 #     ...
+#   }
+#   drain_ports = {
+#     'd.123456' => 48001,
+#     ...,
 #   }
 drains.each.with_index do |(drain_id, drain_data), i|
   parsed = drain_data.split.map { |keyval| keyval.split('=') }.to_h
