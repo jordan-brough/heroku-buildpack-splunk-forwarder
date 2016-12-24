@@ -62,7 +62,7 @@ File.open(inputs_conf_path, 'a') do |file|
   file.puts "source = #{default_source}"
   file.puts "sourcetype = #{default_sourcetype}"
   file.puts
-  file.puts "[tcp://48000]"
+  file.puts "[tcp://#{ENV.fetch('PORT')}]"
 end
 
 # Loop through each drain id in the environment and add stanzas for them.
@@ -115,12 +115,12 @@ puts File.read(inputs_conf_path)
 puts
 
 puts 'Starting Splunk'
-sys('splunk/bin/splunk start splunkd')
+sys('splunk/bin/splunk start splunkd --nodaemon')
 
-puts 'Starting web server'
-load 'server'
+# puts 'Starting web server'
+# load 'server'
 
-Server.new(
-  default_splunk_port: 48000,
-  drain_ports: drain_ports,
-).run
+# Server.new(
+#   default_splunk_port: 48000,
+#   drain_ports: drain_ports,
+# ).run
